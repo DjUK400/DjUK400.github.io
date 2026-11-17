@@ -2,7 +2,7 @@
 
 **Link:** https://djuk400.github.io/
 
-Početna stranica sa svim mojim aplikacijama za prvu godinu Građevinskog fakulteta (Banja Luka): rješavač inverznih funkcija, limesi nizova, MM rješavač za prvi kolokvijum, rješavač ortogonalnih projekcija i zadaci sa vježbi iz nacrtne.
+Početna stranica sa svim mojim aplikacijama za prvu godinu Građevinskog fakulteta (Banja Luka): rješavač inverznih funkcija, limesi nizova, limesi funkcija, MM rješavač za prvi kolokvijum, rješavač ortogonalnih projekcija i zadaci sa vježbi iz nacrtne.
 
 Sve aplikacije dijele isti dizajn (po uzoru na Rješavač inverznih funkcija): iste boje, fontove, zaglavlje, tabove i gornju traku „← Sve aplikacije“ sa dugmetom za temu. Izbor teme važi za sve aplikacije odjednom.
 
