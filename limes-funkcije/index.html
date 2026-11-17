@@ -197,7 +197,8 @@ table.met td:first-child{white-space:nowrap}
     <div class="note hidden" id="syntax">
       Promjenljiva je <code>x</code>. Množenje: <code>3x</code> ili <code>3*x</code> · stepen: <code>x^2</code> · zagrade: <code>(x-1)^2*(x+2)</code> · razlomak broja: <code>7/4</code> · negativan broj: <code>-2</code> · decimale: <code>0.5</code>.
       Brojilac i imenilac se uvijek unose u odvojena polja. Polja s natpisom „broj“ primaju samo konstante (npr. tačka <code>a = -1/2</code>).
-      Funkcije (sin, e, ln…) se biraju iz liste, a u polja se upisuju samo njihovi koeficijenti.
+      U prvom tipu (kao na rokovima) funkcije se upisuju: <code>e^x</code>, <code>e^(-2x)</code>, <code>sin(x)</code> ili <code>sin x</code>, <code>cos(2x)</code>, <code>tg(x)</code>, <code>ctg(x)</code>, <code>arcsin(x)</code>, <code>arctg(x)</code>, <code>ln(1+x)</code>, <code>sqrt(1-x)</code> ili <code>√(1-x)</code>, <code>cbrt(x)</code> ili <code>∛x</code>, <code>|tg(3x)|</code>, <code>sin(x)^2</code>, <code>x*cos(x)</code>.
+      U ostalim tipovima funkcije se biraju iz liste, a u polja se upisuju samo koeficijenti.
     </div>
   </section>
   <section id="out"></section>
@@ -1262,6 +1263,421 @@ function solveAsym(v) {
 const SOLVERS = { ratpt: solveRatPt, ratinf: solveRatInf, irr: solveIrrPt, rootinf: solveRootsInf, std: solveStd, oneinf: solveOneInf, onesided: solveOneSided, asym: solveAsym };
 function solve(id, values) { CUR.problem = null; return SOLVERS[id](values); }
 
+/* ======================= OPŠTI LIMES x → a (bez Lopitala / Makloren) ======================= */
+class NeedMore extends Error {}
+/* ---------- parser izraza ---------- */
+const FNAMES = ['arcsin', 'arctg', 'arctan', 'sqrt', 'cbrt', 'sin', 'cos', 'tg', 'tan', 'ctg', 'cot', 'ln', 'log', 'exp', 'abs'];
+const FMAP = { arctan: 'arctg', tan: 'tg', cot: 'ctg', log: 'ln' };
+function gTokens(src) {
+  const s = String(src || '').replace(/[−–—]/g, '-').replace(/[·×∙⋅]/g, '*').replace(/:/g, '/').replace(/²/g, '^2').replace(/³/g, '^3').replace(/⁴/g, '^4')
+    .replace(/√/g, 'sqrt').replace(/∛/g, 'cbrt').replace(/\s+/g, ' ').trim();
+  if (!s) throw new MathErr('Polje je prazno.');
+  const t = []; let i = 0;
+  while (i < s.length) {
+    const ch = s[i];
+    if (ch === ' ') { i++; continue; }
+    if (/[0-9.]/.test(ch)) { let j = i; while (j < s.length && /[0-9.]/.test(s[j])) j++; const v = s.slice(i, j); if (!/^\d+(\.\d+)?$/.test(v)) throw new MathErr(`Neispravan broj „${v}“.`); t.push({ k: 'num', v }); i = j; continue; }
+    if (/[a-zA-Z]/.test(ch)) {
+      const rest = s.slice(i).toLowerCase(); const f = FNAMES.find(n => rest.startsWith(n));
+      if (f) { t.push({ k: 'fn', v: FMAP[f] || f }); i += f.length; continue; }
+      if (ch === 'x') { t.push({ k: 'x' }); i++; continue; }
+      if (ch === 'e') { t.push({ k: 'e' }); i++; continue; }
+      throw new MathErr(`Ne razumijem „${s.slice(i, i + 6)}“. Funkcije: sin, cos, tg, ctg, arcsin, arctg, ln, sqrt, cbrt, e^(...), |...|.`);
+    }
+    if ('+-*/^()|'.includes(ch)) { t.push({ k: ch }); i++; continue; }
+    if (ch === '[' || ch === '{') { t.push({ k: '(' }); i++; continue; }
+    if (ch === ']' || ch === '}') { t.push({ k: ')' }); i++; continue; }
+    throw new MathErr(`Nepoznat znak „${ch}“.`);
+  }
+  return t;
+}
+const N_ = {
+  num: q => ({ k: 'num', q }), x: () => ({ k: 'x' }), add: (a, b) => ({ k: 'add', a, b }), sub: (a, b) => ({ k: 'sub', a, b }),
+  mul: (a, b) => ({ k: 'mul', a, b }), div: (a, b) => ({ k: 'div', a, b }), neg: a => ({ k: 'neg', a }), pow: (a, q) => ({ k: 'pow', a, q }),
+  exp: a => ({ k: 'exp', a }), fn: (f, a) => ({ k: 'fn', f, a }), abs: a => ({ k: 'abs', a })
+};
+function constVal(n) { // racionalna vrijednost konstantnog podizraza ili null
+  switch (n.k) {
+    case 'num': return n.q;
+    case 'neg': { const v = constVal(n.a); return v && v.neg(); }
+    case 'add': case 'sub': case 'mul': case 'div': { const a = constVal(n.a), b = constVal(n.b); if (!a || !b) return null; if (n.k === 'div' && b.isZero()) throw new MathErr('Dijeljenje nulom.'); return n.k === 'add' ? a.add(b) : n.k === 'sub' ? a.sub(b) : n.k === 'mul' ? a.mul(b) : a.div(b); }
+    case 'pow': { const a = constVal(n.a); if (!a) return null; if (n.q.isInt()) return a.pow(Number(n.q.n)); const r = qroot(a, Number(n.q.d)); return r ? r.pow(Number(n.q.n)) : null; }
+    default: return null;
+  }
+}
+function gParse(src) {
+  const T = gTokens(src); let p = 0, absDepth = 0;
+  const peek = () => T[p], eat = k => { if (!T[p] || T[p].k !== k) throw new MathErr(`Očekivan znak „${k}“ — provjeri zagrade.`); return T[p++]; };
+  function expo() { // eksponent: racionalna konstanta
+    let neg = false; if (peek() && peek().k === '-') { p++; neg = true; }
+    let n;
+    if (peek() && peek().k === '(') { p++; n = expr(); eat(')'); } else if (peek() && peek().k === 'num') { const t = T[p++]; n = N_.num(qFromStr(t.v)); } else if (peek() && peek().k === 'x') { p++; n = N_.x(); }
+    else throw new MathErr('Iza ^ očekujem broj ili izraz u zagradi.');
+    return neg ? N_.neg(n) : n;
+  }
+  function applyPow(base, e) {
+    const q = constVal(e);
+    if (!q) throw new Unsupported('Eksponent koji zavisi od x (npr. f(x)^g(x)) nije podržan u ovom tipu — za oblik 1^∞ koristi tip „Oblik 1^∞“.');
+    return N_.pow(base, q);
+  }
+  function fnArg() {
+    if (peek() && peek().k === '(') { p++; const e = expr(); eat(')'); return e; }
+    // bez zagrada: [broj] x [^n]  ili  broj
+    let c = null; if (peek() && peek().k === 'num') { c = N_.num(qFromStr(T[p++].v)); }
+    let n = c;
+    if (peek() && peek().k === 'x') { p++; let xx = N_.x(); if (peek() && peek().k === '^') { p++; xx = applyPow(xx, expo()); } n = c ? N_.mul(c, xx) : xx; }
+    if (!n) throw new MathErr('Iza funkcije očekujem argument, npr. sin(2x) ili sin x.');
+    return n;
+  }
+  function primary() {
+    const t = peek(); if (!t) throw new MathErr('Izraz je nepotpun.');
+    if (t.k === 'num') { p++; return N_.num(qFromStr(t.v)); }
+    if (t.k === 'x') { p++; return N_.x(); }
+    if (t.k === 'e') {
+      p++;
+      if (peek() && peek().k === '^') { p++; let neg = false; if (peek() && peek().k === '-') { p++; neg = true; } let a; if (peek() && peek().k === '(') { p++; a = expr(); eat(')'); } else a = fnArg(); return N_.exp(neg ? N_.neg(a) : a); }
+      throw new Unsupported('Broj e van eksponenta (npr. e·x) nije podržan; piši e^(...).');
+    }
+    if (t.k === '(') { p++; const e = expr(); eat(')'); return e; }
+    if (t.k === '|') { p++; absDepth++; const e = expr(); eat('|'); absDepth--; return N_.abs(e); }
+    if (t.k === 'fn') {
+      p++; let pw = null;
+      if (peek() && peek().k === '^') { p++; pw = expo(); }
+      const a = fnArg(); let n;
+      if (t.v === 'sqrt') n = N_.pow(a, q(1, 2)); else if (t.v === 'cbrt') n = N_.pow(a, q(1, 3)); else if (t.v === 'exp') n = N_.exp(a); else if (t.v === 'abs') n = N_.abs(a); else n = N_.fn(t.v, a);
+      return pw ? applyPow(n, pw) : n;
+    }
+    throw new MathErr(`Neočekivan znak „${t.k}“.`);
+  }
+  function power() { let b = primary(); while (peek() && peek().k === '^') { p++; b = applyPow(b, expo()); } return b; }
+  function unary() { const t = peek(); if (t && t.k === '-') { p++; return N_.neg(unary()); } if (t && t.k === '+') { p++; return unary(); } return power(); }
+  function term() {
+    let a = unary();
+    for (;;) {
+      const t = peek(); if (!t) break;
+      if (t.k === '*') { p++; a = N_.mul(a, unary()); }
+      else if (t.k === '/') { p++; a = N_.div(a, unary()); }
+      else if (['num', 'x', 'e', 'fn', '('].includes(t.k) || (t.k === '|' && absDepth === 0)) a = N_.mul(a, power());
+      else break;
+    }
+    return a;
+  }
+  function expr() { let a = term(); while (peek() && (peek().k === '+' || peek().k === '-')) { const o = T[p++].k; const b = term(); a = o === '+' ? N_.add(a, b) : N_.sub(a, b); } return a; }
+  const r = expr(); if (p < T.length) throw new MathErr('Višak znakova u izrazu — provjeri zapis.');
+  return r;
+}
+function hasX(n) { return n.k === 'x' || (n.a && hasX(n.a)) || (n.b && hasX(n.b)); }
+function hasAbs(n) { return n.k === 'abs' || (n.a && hasAbs(n.a)) || (n.b && hasAbs(n.b)); }
+function kinds(n, set = new Set()) {
+  if (n.k === 'exp') set.add('exp'); if (n.k === 'fn') set.add(n.f); if (n.k === 'pow' && !n.q.isInt()) set.add('pow:' + n.q.str());
+  if (n.a) kinds(n.a, set); if (n.b) kinds(n.b, set); return set;
+}
+/* ---------- TeX ---------- */
+const FTEX = { sin: R`\sin`, cos: R`\cos`, tg: R`\operatorname{tg}`, ctg: R`\operatorname{ctg}`, arcsin: R`\arcsin`, arctg: R`\operatorname{arctg}`, ln: R`\ln` };
+function prec(n) { return { add: 1, sub: 1, neg: 1.5, mul: 2, div: 3, pow: 3, num: n.q && (n.q.sign() < 0) ? 1.5 : n.q && !n.q.isInt() ? 3 : 4 }[n.k] || 4; }
+function simpleArg(n) { return n.k === 'x' || (n.k === 'mul' && n.a.k === 'num' && n.a.q.sign() > 0 && n.a.q.isInt() && n.b.k === 'x'); }
+function gTex(n) {
+  const P2 = (c, m) => prec(c) < m ? paren(gTex(c)) : gTex(c);
+  switch (n.k) {
+    case 'num': return n.q.tex();
+    case 'x': return 'x';
+    case 'add': { const b = gTex(n.b); return gTex(n.a) + (b.startsWith('-') ? ' ' : ' + ') + b; }
+    case 'sub': return gTex(n.a) + ' - ' + P2(n.b, 2);
+    case 'neg': return '-' + P2(n.a, 2);
+    case 'mul': { const a = P2(n.a, 2), b = P2(n.b, 2); const dot = /^[0-9\\(]/.test(b) && !/^\\(sin|cos|ln|arc|sqrt|left|operatorname)/.test(b) || /^\\frac/.test(b) || (n.a.k !== 'num' && n.b.k !== 'x'); return a + (dot ? R`\cdot ` : '') + b; }
+    case 'div': return R`\frac{${gTex(n.a)}}{${gTex(n.b)}}`;
+    case 'pow': {
+      const qq = n.q;
+      if (qq.n === 1n && qq.d === 2n) return R`\sqrt{${gTex(n.a)}}`;
+      if (qq.n === 1n && qq.d === 3n) return R`\sqrt[3]{${gTex(n.a)}}`;
+      if (qq.n === 1n && qq.d > 1n) return R`\sqrt[${qq.d}]{${gTex(n.a)}}`;
+      if (n.a.k === 'fn' && qq.isInt() && qq.sign() > 0) return FTEX[n.a.f] + `^{${qq.n}}` + (simpleArg(n.a.a) ? ' ' + gTex(n.a.a) : paren(gTex(n.a.a)));
+      const b = (n.a.k === 'x') ? 'x' : paren(gTex(n.a));
+      return `${b}^{${qq.tex()}}`;
+    }
+    case 'exp': return `e^{${gTex(n.a)}}`;
+    case 'fn': return FTEX[n.f] + (simpleArg(n.a) ? ' ' + gTex(n.a) : paren(gTex(n.a)));
+    case 'abs': return R`\left|${gTex(n.a)}\right|`;
+  }
+}
+/* ---------- tačni stepeni redovi (Makloren) ---------- */
+let SP = 10;
+const FACTB = [1n]; for (let i = 1; i <= 80; i++) FACTB.push(FACTB[i - 1] * BigInt(i));
+function sZero(hi) { return { o: hi + 1, c: [], hi }; }
+function sNorm(o, c, hi) {
+  let i = 0; while (i < c.length && c[i].isZero()) i++;
+  c = c.slice(i); o += i;
+  const n = Math.max(0, hi - o + 1); if (c.length > n) c = c.slice(0, n);
+  return c.length ? { o, c, hi } : sZero(hi);
+}
+const sC = (S, e) => { const i = e - S.o; return i >= 0 && i < S.c.length ? S.c[i] : Z; };
+const sConst = (x, hi = SP) => sNorm(0, [Q.of(x)], hi);
+function sAdd(A, B) { const hi = Math.min(A.hi, B.hi), o = Math.min(A.o, B.o), c = []; for (let e = o; e <= hi; e++) c.push(sC(A, e).add(sC(B, e))); return sNorm(o, c, hi); }
+const sNeg = A => ({ o: A.o, c: A.c.map(x => x.neg()), hi: A.hi });
+const sScale = (A, k) => k.isZero() ? sZero(A.hi) : ({ o: A.o, c: A.c.map(x => x.mul(k)), hi: A.hi });
+function sMul(A, B) {
+  const hi = Math.min(A.hi + B.o, B.hi + A.o, SP);
+  if (!A.c.length || !B.c.length) return sZero(hi);
+  const o = A.o + B.o, c = [];
+  for (let e = o; e <= hi; e++) { let s = Z; for (let i = 0; i < A.c.length; i++) { const j = e - o - i; if (j >= 0 && j < B.c.length) s = s.add(A.c[i].mul(B.c[j])); } c.push(s); }
+  return sNorm(o, c, hi);
+}
+function sInv(A) {
+  if (!A.c.length) throw new NeedMore();
+  const c0 = A.c[0], Rr = Math.min(A.hi - A.o, SP + A.o), b = [ONE.div(c0)];
+  for (let n = 1; n <= Rr; n++) { let s = Z; for (let i = 1; i <= n; i++) s = s.add((A.c[i] || Z).mul(b[n - i])); b.push(s.neg().div(c0)); }
+  return sNorm(-A.o, b, -A.o + Rr);
+}
+function sPowInt(A, n) { if (n < 0) return sPowInt(sInv(A), -n); let r = sConst(1, Math.max(A.hi, SP)); for (let i = 0; i < n; i++) r = sMul(r, A); return r; }
+function sCompose(f, U) { // Σ f(k)·U^k, U.o ≥ 1
+  if (!U.c.length) return sNorm(0, [f(0)], U.hi);
+  let res = sNorm(0, [f(0)], SP), pw = U;
+  for (let k = 1; k * U.o <= SP; k++) { const fk = f(k); if (!fk.isZero()) res = sAdd(res, sScale(pw, fk)); pw = sMul(pw, U); }
+  return sNorm(res.o, res.c, Math.min(res.hi, U.hi + (f(1).isZero() ? U.o : 0)));
+}
+const fq = k => new Q(1n, FACTB[k]);
+const CO = {
+  exp: k => fq(k),
+  sin: k => k % 2 ? fq(k).mul(((k - 1) / 2) % 2 ? -1 : 1) : Z,
+  cos: k => k % 2 ? Z : fq(k).mul((k / 2) % 2 ? -1 : 1),
+  arctg: k => k % 2 ? new Q(((k - 1) / 2) % 2 ? -1n : 1n, BigInt(k)) : Z,
+  arcsin: k => { if (k % 2 === 0) return Z; const j = (k - 1) / 2; return new Q(FACTB[2 * j], 4n ** BigInt(j) * FACTB[j] * FACTB[j] * BigInt(k)); },
+  ln1p: k => k === 0 ? Z : new Q(k % 2 ? 1n : -1n, BigInt(k)),
+  binom: al => k => { let r = ONE; for (let i = 0; i < k; i++) r = r.mul(al.sub(i)).div(i + 1); return r; }
+};
+function sArg(S, name) {
+  if (S.hi < 0) throw new NeedMore();
+  if (S.o < 0) throw new Unsupported(`Argument funkcije ${name} teži beskonačnosti u tački a — taj slučaj nije podržan u ovom tipu.`);
+  const a0 = sC(S, 0); return { a0, U: sAdd(S, sConst(a0.neg(), S.hi)) };
+}
+const NONRAT = (f, a0) => new Unsupported(`Vrijednost ${f}(${a0.str()}) nije racionalan broj, pa se rezultat ne može tačno izraziti. Podržano je kad je argument funkcije u tački a jednak 0 (za ln: 1).`);
+function sFn(f, S) {
+  const { a0, U } = sArg(S, f);
+  switch (f) {
+    case 'exp': if (!a0.isZero()) throw NONRAT('e^', a0); return sCompose(CO.exp, U);
+    case 'sin': case 'cos': case 'arcsin': case 'arctg': if (!a0.isZero()) throw NONRAT(f, a0); return sCompose(CO[f], U);
+    case 'tg': if (!a0.isZero()) throw NONRAT('tg', a0); return sMul(sCompose(CO.sin, U), sInv(sCompose(CO.cos, U)));
+    case 'ctg': if (!a0.isZero()) throw NONRAT('ctg', a0); return sMul(sCompose(CO.cos, U), sInv(sCompose(CO.sin, U)));
+    case 'ln': if (a0.sign() <= 0) throw new Unsupported('Argument logaritma u tački a nije pozitivan (ln teži −∞ ili nije definisan) — nije podržano.'); if (!a0.isOne()) throw NONRAT('ln', a0); return sCompose(CO.ln1p, U);
+  }
+  throw new Error('fn ' + f);
+}
+function sPowQ(S, al) {
+  if (al.isInt()) return sPowInt(S, Number(al.n));
+  const { a0 } = sArg(S, 'korijena');
+  if (a0.isZero()) throw new Unsupported('Korijen (necijeli stepen) izraza koji je u tački a jednak 0 nema Maklorenov razvoj po cijelim stepenima — nije podržano.');
+  if (a0.sign() < 0 && al.d % 2n === 0n) throw new MathErr('Paran korijen iz negativnog broja u tački a — izraz nije definisan.');
+  const r = qroot(a0, Number(al.d)); if (!r) throw new Unsupported(`Korijen iz ${a0.str()} nije racionalan broj — rezultat se ne može tačno izraziti.`);
+  const ba = r.pow(Number(al.n));
+  const W = sAdd(sScale(S, ONE.div(a0)), sConst(-1, S.hi));
+  return sScale(sCompose(CO.binom(al), W), ba);
+}
+function sAbs(S, sg) {
+  if (!S.c.length) throw new NeedMore();
+  const s = S.c[0].sign() * (sg < 0 && Math.abs(S.o) % 2 ? -1 : 1);
+  return s < 0 ? sNeg(S) : S;
+}
+function ser(n, a, sg) {
+  switch (n.k) {
+    case 'num': return sConst(n.q);
+    case 'x': return sNorm(0, [a, ONE], SP);
+    case 'add': return sAdd(ser(n.a, a, sg), ser(n.b, a, sg));
+    case 'sub': return sAdd(ser(n.a, a, sg), sNeg(ser(n.b, a, sg)));
+    case 'neg': return sNeg(ser(n.a, a, sg));
+    case 'mul': return sMul(ser(n.a, a, sg), ser(n.b, a, sg));
+    case 'div': return sMul(ser(n.a, a, sg), sInv(ser(n.b, a, sg)));
+    case 'pow': return sPowQ(ser(n.a, a, sg), n.q);
+    case 'exp': return sFn('exp', ser(n.a, a, sg));
+    case 'fn': return sFn(n.f, ser(n.a, a, sg));
+    case 'abs': return sAbs(ser(n.a, a, sg), sg);
+  }
+}
+function withPrec(fn) {
+  for (const p of [8, 14, 22, 34, 48]) { SP = p; try { return fn(); } catch (e) { if (!(e instanceof NeedMore)) throw e; } }
+  throw new Unsupported('Izraz je (skoro) identički jednak 0 ili je potreban prevelik red razvoja.');
+}
+function gEval(n, x) {
+  switch (n.k) {
+    case 'num': return n.q.toNumber(); case 'x': return x;
+    case 'add': return gEval(n.a, x) + gEval(n.b, x); case 'sub': return gEval(n.a, x) - gEval(n.b, x);
+    case 'neg': return -gEval(n.a, x); case 'mul': return gEval(n.a, x) * gEval(n.b, x); case 'div': return gEval(n.a, x) / gEval(n.b, x);
+    case 'pow': { const b = gEval(n.a, x), qn = Number(n.q.n), qd = Number(n.q.d); if (qd === 1) return Math.pow(b, qn); const v = Math.pow(Math.abs(b), qn / qd); if (b >= 0) return v; return qd % 2 ? (qn % 2 ? -v : v) : NaN; }
+    case 'exp': return Math.exp(gEval(n.a, x));
+    case 'abs': return Math.abs(gEval(n.a, x));
+    case 'fn': { const v = gEval(n.a, x); return { sin: Math.sin, cos: Math.cos, tg: Math.tan, ctg: t => 1 / Math.tan(t), arcsin: Math.asin, arctg: Math.atan, ln: Math.log }[n.f](v); }
+  }
+}
+/* ---------- članovi zbira ---------- */
+function flat(n, s = 1, out = []) {
+  if (n.k === 'add') { flat(n.a, s, out); flat(n.b, s, out); }
+  else if (n.k === 'sub') { flat(n.a, s, out); flat(n.b, -s, out); }
+  else if (n.k === 'neg' && (n.a.k === 'add' || n.a.k === 'sub' || n.a.k === 'neg')) flat(n.a, -s, out);
+  else if (n.k === 'neg') out.push({ s: -s, n: n.a });
+  else out.push({ s, n });
+  return out;
+}
+function monoT(k, v, tv) {
+  if (v === 0) return k.tex();
+  if (v > 0) return coefMon(k, v === 1 ? tv : `${tv}^{${v}}`);
+  const neg = k.sign() < 0, a = k.abs();
+  return (neg ? '-' : '') + R`\frac{${a.n}}{${a.d === 1n ? '' : a.d}${-v === 1 ? tv : `${tv}^{${-v}}`}}`;
+}
+function serTex(S, upto, tv) {
+  let out = '', first = true;
+  for (let e = S.o; e <= upto; e++) { const c = sC(S, e); if (c.isZero()) continue; out += signedTerm(c, e === 0 ? '' : e === 1 ? tv : `${tv}^{${e}}`, first); first = false; }
+  return (out || '0') + R` + o\left(${tv}${upto === 1 ? '' : `^{${upto}}`}\right)`;
+}
+/* jedan nivo pravila: G − G(a) ~ ... */
+function ruleTex(G, a, sg) {
+  const val = n => withPrec(() => sC(ser(n, a, sg), 0));
+  const gt = gTex(G);
+  if (G.k === 'mul' && G.a.k === 'num') return null;
+  if (G.k === 'neg') return null;
+  const u = G.a;
+  if (G.k === 'fn' && ['sin', 'tg', 'arcsin', 'arctg'].includes(G.f)) return `${gt} \\sim ${gTex(u)}`;
+  if (G.k === 'fn' && G.f === 'cos') return `${gt} - 1 \\sim -\\frac{1}{2}${u.k === 'x' ? 'x' : paren(gTex(u))}^{2}`;
+  if (G.k === 'exp') return `${gt} - 1 \\sim ${gTex(u)}`;
+  if (G.k === 'fn' && G.f === 'ln') return `${gt} = \\ln\\left(1 + \\left(${gTex(u)} - 1\\right)\\right) \\sim ${gTex(u)} - 1`;
+  if (G.k === 'pow' && !G.q.isInt()) {
+    const u0 = val(u), g0 = val(G), al = G.q.tex();
+    if (u0.isOne()) return `${gt} - 1 = \\left(1 + \\left(${gTex(u)} - 1\\right)\\right)^{${al}} - 1 \\sim ${al}\\left(${gTex(u)} - 1\\right)`;
+    const uu = `\\frac{${gTex(u)} ${u0.sign() < 0 ? '+ ' + u0.neg().tex() : '- ' + u0.tex()}}{${u0.tex()}}`;
+    return `${gt} ${g0.sign() < 0 ? '+ ' + g0.neg().tex() : '- ' + g0.tex()} = ${g0.tex()}\\left[\\left(1 + ${uu}\\right)^{${al}} - 1\\right] \\sim ${g0.isOne() ? '' : g0.tex() + '\\cdot '}${al}\\cdot ${uu}`;
+  }
+  if (G.k === 'pow' && G.q.isInt() && G.q.sign() > 0 && G.a.k === 'fn' && ['sin', 'tg', 'arcsin', 'arctg'].includes(G.a.f)) return `${gt} \\sim ${G.a.a.k === 'x' ? 'x' : paren(gTex(G.a.a))}^{${G.q.n}}`;
+  return null;
+}
+function termInfo(t, a, sg) {
+  return withPrec(() => {
+    const S = ser(t.n, a, sg);
+    if (S.o < 0) throw new Unsupported('Jedan sabirak teži beskonačnosti u tački a — ovaj tip to ne podržava.');
+    const c = sC(S, 0), Rr = sAdd(S, sConst(c.neg(), S.hi));
+    if (!Rr.c.length) { if (!hasX(t.n)) return { c, zero: true }; throw new NeedMore(); }
+    return { c, v: Rr.o, k: Rr.c[0], S };
+  });
+}
+const KTXT = { exp: R`e^{u} = 1 + u + \frac{u^2}{2} + \frac{u^3}{6} + \frac{u^4}{24} + o(u^4)`, sin: R`\sin u = u - \frac{u^3}{6} + \frac{u^5}{120} + o(u^5)`, cos: R`\cos u = 1 - \frac{u^2}{2} + \frac{u^4}{24} + o(u^4)`,
+  tg: R`\operatorname{tg} u = u + \frac{u^3}{3} + \frac{2u^5}{15} + o(u^5)`, ctg: R`\operatorname{ctg} u = \frac{1}{u} - \frac{u}{3} + o(u)`, arcsin: R`\arcsin u = u + \frac{u^3}{6} + o(u^3)`, arctg: R`\operatorname{arctg} u = u - \frac{u^3}{3} + o(u^3)`,
+  ln: R`\ln(1+u) = u - \frac{u^2}{2} + \frac{u^3}{3} - \frac{u^4}{4} + o(u^4)` };
+const STXT = { exp: R`\lim_{u\to0}\frac{e^{u}-1}{u} = 1`, sin: R`\lim_{u\to0}\frac{\sin u}{u} = 1`, cos: R`\lim_{u\to0}\frac{1-\cos u}{u^2} = \frac12`, tg: R`\lim_{u\to0}\frac{\operatorname{tg} u}{u} = 1`, arcsin: R`\lim_{u\to0}\frac{\arcsin u}{u} = 1`, arctg: R`\lim_{u\to0}\frac{\operatorname{arctg} u}{u} = 1`, ln: R`\lim_{u\to0}\frac{\ln(1+u)}{u} = 1`, pow: R`\lim_{u\to0}\frac{(1+u)^{\alpha}-1}{u} = \alpha` };
+function binomTxt(al) { const b = CO.binom(al); return R`(1+u)^{${al.tex()}} = 1 ${signedTerm(b(1), 'u', false)} ${signedTerm(b(2), 'u^2', false)} ${signedTerm(b(3), 'u^3', false)} + o(u^3)`; }
+
+function absNodes(n, out = []) { if (n.k === 'abs') out.push(n); if (n.a) absNodes(n.a, out); if (n.b) absNodes(n.b, out); return out; }
+function absNote(Nn, Dn, a, sg) {
+  return [...absNodes(Nn), ...absNodes(Dn)].map(n => {
+    const S = withPrec(() => { const r = ser(n.a, a, sg); if (!r.c.length) throw new NeedMore(); return r; });
+    const sgn = S.c[0].sign() * (sg < 0 && Math.abs(S.o) % 2 ? -1 : 1), u = gTex(n.a);
+    return `<p>Za $x\\to ${a.tex()}^{${sg > 0 ? '+' : '-'}}$ je $${u} ${sgn > 0 ? '> 0' : '< 0'}$, pa je $\\left|${u}\\right| = ${sgn > 0 ? u : '-' + paren(u)}$.</p>`;
+  }).join('');
+}
+function solveGen(v) {
+  const Nn = gParse(v.num), Dn = gParse(v.den || '1'), a = pconst(v.a, 'Tačka a', Z), side0 = v.side || '0', method = v.method || 'auto';
+  const ap = { kind: 'pt', a, side: side0 };
+  const problem = R`${limTex(ap)}\frac{${gTex(Nn)}}{${gTex(Dn)}}`; CUR.problem = problem;
+  const tv = a.isZero() ? 'x' : 't', tN = a.isZero() ? '' : R` \quad (t = ${linTex(a)})`;
+  const ab = hasAbs(Nn) || hasAbs(Dn);
+  const numeric = x => gEval(Nn, x) / gEval(Dn, x);
+  const steps = [];
+  const sides = ab ? [1, -1] : [1];
+  // vrijednosti u tački
+  const SN1 = withPrec(() => { const s = ser(Nn, a, 1); if (s.hi < 0) throw new NeedMore(); return s; });
+  const SD1 = withPrec(() => { const s = ser(Dn, a, 1); if (s.hi < 0) throw new NeedMore(); if (!s.c.length) throw new NeedMore(); return s; });
+  if (SN1.o < 0 || SD1.o < 0) throw new Unsupported('Brojilac ili imenilac teži beskonačnosti u tački a — ovaj tip je za oblike 0/0 i c/0.');
+  const N0 = sC(SN1, 0), D0 = sC(SD1, 0);
+  steps.push(step('Uvrštavanje', `Uvrsti x = ${a.str()} u brojilac i imenilac.`,
+    `Brojilac: $${N0.tex()}$, imenilac: $${D0.tex()}$. ` + (D0.isZero() && N0.isZero() ? 'Dobijamo oblik $\\frac{0}{0}$ — neodređen.' : D0.isZero() ? `Oblik $\\frac{${N0.tex()}}{0}$.` : 'Nema neodređenog oblika.'),
+    'Elementarne funkcije su neprekidne na domenu, pa prvo uvijek probamo uvrštavanje. Korisno: e⁰ = 1, cos 0 = 1, sin 0 = tg 0 = 0, ln 1 = 0, √1 = 1.'));
+  const seriesAll = sg => withPrec(() => { const S = sMul(ser(Nn, a, sg), sInv(ser(Dn, a, sg))); if (!S.c.length) throw new NeedMore(); return S; });
+  const fromS = S => S.o > 0 ? Res.num(Z) : S.o === 0 ? Res.num(S.c[0]) : null;
+  if (!D0.isZero()) {
+    const res = Res.num(N0.div(D0));
+    steps.push(step('Rezultat', 'Podijeli vrijednosti.', `$$L = \\frac{${N0.tex()}}{${D0.tex()}} = ${res.q.tex()}$$`, 'Funkcija je neprekidna u tački a.'));
+    return finish({ problem, steps, result: res, ap, numeric });
+  }
+  if (!a.isZero()) steps.push(step('Smjena', `Uvedi t = x − ${a.str()}, pa t → 0.`, `$$x = ${a.tex()} + t,\\qquad t\\to 0$$ Sve dalje razvijamo po malom $t$.`, 'Standardni limesi i Maklorenova formula važe kad promjenljiva teži 0, zato tačku a pomjerimo u 0.'));
+  const perSide = {};
+  for (const sg of sides) {
+    const pre = ab ? (sg > 0 ? `x → ${a.str()}⁺: ` : `x → ${a.str()}⁻: `) : '';
+    const S = seriesAll(sg);
+    let res;
+    if (S.o >= 0) res = fromS(S);
+    else { const s = S.c[0].sign(); res = { L: Res.inf(s * (Math.abs(S.o) % 2 ? -1 : 1)), D: Res.inf(s) }; }
+    if (ab && res.L) res = sg > 0 ? res.D : res.L;
+    perSide[sg] = res;
+    if (!N0.isZero()) {
+      const SN = withPrec(() => ser(Nn, a, sg)), SD = withPrec(() => ser(Dn, a, sg));
+      const m = SD.o, kD = SD.c[0];
+      const R0 = res.L ? res : null;
+      steps.push(step(pre + 'Oblik c/0', 'Kojim stepenom imenilac teži nuli i koji mu je znak?',
+        `Imenilac se ponaša kao $${monoT(kD, m, tv)}$${tN}, a brojilac teži $${N0.tex()}$. ` + (R0 ? `$$${sideLim(a, '-')} = ${resTex(R0.L)},\\qquad ${sideLim(a, '+')} = ${resTex(R0.D)}$$` : `$$L = ${resTex(res)}$$`), WHY_C0));
+      continue;
+    }
+    // članovi
+    const tn = flat(Nn).map(t => ({ ...t, ...termInfo(t, a, sg) })).filter(t => !t.zero);
+    const td = flat(Dn).map(t => ({ ...t, ...termInfo(t, a, sg) })).filter(t => !t.zero);
+    const SN = withPrec(() => { const s = ser(Nn, a, sg); if (!s.c.length) throw new NeedMore(); return s; });
+    const SD = withPrec(() => { const s = ser(Dn, a, sg); if (!s.c.length) throw new NeedMore(); return s; });
+    const okStd = arr => { const mn = Math.min(...arr.map(t => t.v)); return arr.reduce((s, t) => t.v === mn ? s.add(t.k.mul(t.s)) : s, Z).sign() !== 0; };
+    let use = method === 'mac' ? 'mac' : (okStd(tn) && okStd(td)) ? 'std' : 'mac';
+    if (method === 'std' && use === 'mac') throw new Unsupported('Standardni limesi ovdje ne daju rezultat: vodeći članovi u brojiocu (ili imeniocu) se poništavaju, pa se opet dobija 0/0. Izaberi „Maklorenova formula“ ili „automatski“.');
+    const vN = SN.o, vD = SD.o, kN = SN.c[0], kD = SD.c[0];
+    const sumTex = arr => arr.map((t, i) => { const inner = t.c.isZero() ? gTex(t.n) : `${gTex(t.n)} ${t.c.sign() < 0 ? '+ ' + t.c.neg().tex() : '- ' + t.c.tex()}`; const bod = (arr.length > 1 && !t.c.isZero()) || (t.s < 0 && !t.c.isZero()) ? paren(inner) : inner; return (i === 0 ? (t.s < 0 ? '-' : '') : (t.s < 0 ? ' - ' : ' + ')) + bod; }).join('');
+    if (use === 'std') {
+      const moved = [tn, td].some(arr => arr.length > 1 && arr.some(t => !t.c.isZero()));
+      if (moved) steps.push(step(pre + 'Dodaj i oduzmi konstante', 'Svaki sabirak napiši tako da teži 0: oduzmi mu vrijednost u tački a (zbir tih vrijednosti je 0).',
+        `$$${gTex(Nn)} = ${sumTex(tn)}$$` + (td.some(t => !t.c.isZero()) ? `$$${gTex(Dn)} = ${sumTex(td)}$$` : ''),
+        'Brojilac je u tački a jednak 0, pa je zbir oduzetih konstanti 0 — izraz se ne mijenja. Sada je svaki sabirak oblika „standardni izraz koji teži 0“ (eᵘ − 1, 1 − cos u, ln(1+u), (1+u)^α − 1, sin u…).'));
+      const lines = arr => arr.map(t => {
+        const lhs = t.c.isZero() ? gTex(t.n) : `${gTex(t.n)} ${t.c.sign() < 0 ? '+ ' + t.c.neg().tex() : '- ' + t.c.tex()}`;
+        const fin = monoT(t.k, t.v, tv);
+        let rt = null; try { rt = ruleTex(t.n, a, sg); } catch (e) { rt = null; }
+        if (!kinds(t.n).size && !hasAbs(t.n)) return gTex(t.n) === fin ? '' : `$$${lhs} \\sim ${fin}$$`;
+        return rt ? `$$${rt}${rt.endsWith(fin) ? '' : R` \sim ${fin}`}$$` : `$$${lhs} \\sim ${fin}$$`;
+      }).join('');
+      const used = new Set(); [Nn, Dn].forEach(n => kinds(n).forEach(k => used.add(k.startsWith('pow') ? 'pow' : k)));
+      steps.push(step(pre + 'Standardni limesi po sabircima', `Za svaki sabirak nađi njegov „glavni dio“ c·${tv}ᵏ pomoću standardnih limesa.`,
+        (ab ? absNote(Nn, Dn, a, sg) : '') + lines(tn) + lines(td) + (used.size ? '<p class="desc">Korišteno:</p>' + [...used].filter(k => STXT[k]).map(k => `$$${STXT[k]}$$`).join('') : '') + (tv === 't' ? `<p class="desc">Ovdje je $t = ${linTex(a)} \\to 0$.</p>` : ''),
+        '„A ~ c·xᵏ“ znači lim A/(c·xᵏ) = 1. Dobija se iz standardnih limesa smjenom u = (unutrašnji izraz) → 0, npr. (√cos x − 1) = (1 + (cos x − 1))^(1/2) − 1 ~ ½(cos x − 1) ~ ½·(−x²/2). Ovo smijemo za svaki sabirak posebno jer odmah prelazimo na limese količnika sabirak/xᵏ.'));
+      const part = (arr, m, kk, name) => {
+        const ts = arr.map(t => `${t.s < 0 ? '-' : '+'}${t.v === m ? paren(t.k.tex()) : '0'}`).join(' ').replace(/^\+/, '');
+        return `$$\\lim\\frac{\\text{${name}}}{${monoT(ONE, m, tv)}} = ${arr.length > 1 ? ts + ' = ' : ''}${kk.tex()}$$`;
+      };
+      steps.push(step(pre + 'Dijeljenje sa najmanjim stepenom', `Podijeli brojilac sa ${tv}^${vN}, a imenilac sa ${tv}^${vD}, pa uzmi limes svakog sabirka.`,
+        part(tn, vN, kN, 'brojilac') + part(td, vD, kD, 'imenilac') + '<p class="desc">Sabirak sa većim stepenom od najmanjeg teži 0 nakon dijeljenja.</p>',
+        'Limes zbira je zbir limesa (svi postoje). Svaki količnik sabirak/xᵏ je standardni limes. Ključno je da zbir u brojiocu ni u imeniocu nije 0 — inače standardni limesi nisu dovoljni i treba Maklorenova formula.'));
+    } else {
+      const used = new Set(); [Nn, Dn].forEach(n => kinds(n).forEach(k => used.add(k)));
+      const fl = [...used].map(k => k.startsWith('pow:') ? binomTxt(qFromStr(k.slice(4).replace('-', '')).mul(k.includes('-') ? -1 : 1)) : KTXT[k]).filter(Boolean);
+      steps.push(step(pre + 'Maklorenove formule', 'Koje razvoje trebaš? Napiši ih dok ne dobiješ prvi član koji se ne poništi.',
+        fl.map(f => `$$${f}$$`).join('') || 'Izraz je polinomski.', 'Maklorenova formula: f(u) = f(0) + f′(0)u + f″(0)u²/2! + … + o(uⁿ). Za složene izraze se u standardne razvoje uvrsti u = (unutrašnji izraz) i zadrže stepeni do potrebnog reda.'));
+      const exp = (arr, m) => arr.map(t => `$$${gTex(t.n)} = ${serTex(t.S, m, tv)}$$`).join('');
+      steps.push(step(pre + 'Razvoj brojioca', `Razvij svaki sabirak brojioca do ${tv}^${vN}.`,
+        exp(tn, vN) + `$$\\text{brojilac} = ${serTex(SN, vN, tv)}$$`, 'Sabiramo razvoje; svi članovi do reda u kojem se pojavljuje prvi ne-nula član se poništavaju — zato standardni limesi (samo prvi član) ovdje nisu dovoljni.'));
+      steps.push(step(pre + 'Razvoj imenioca', `Razvij imenilac do ${tv}^${vD}.`,
+        (td.length === 1 && !kinds(Dn).size ? '' : exp(td, vD)) + `$$\\text{imenilac} = ${serTex(SD, vD, tv)}$$`, 'o(xⁿ) označava članove koji teže 0 brže od xⁿ (nakon dijeljenja sa xⁿ teže 0).'));
+    }
+    const e = vN - vD;
+    let txt;
+    if (res.L) txt = `$$\\frac{${monoT(kN, vN, tv)}}{${monoT(kD, vD, tv)}} = ${monoT(kN.div(kD), e, tv)}:\\qquad ${sideLim(a, '-')} = ${resTex(res.L)},\\quad ${sideLim(a, '+')} = ${resTex(res.D)}$$`;
+    else txt = `$$L = \\lim\\frac{${monoT(kN, vN, tv)}}{${monoT(kD, vD, tv)}} = ${e > 0 ? `\\lim ${monoT(kN.div(kD), e, tv)} = 0` : kN.div(kD).tex()}$$`;
+    steps.push(step(pre + 'Rezultat', 'Podijeli glavne dijelove brojioca i imenioca.', txt, 'Ostali članovi (o(xⁿ)) nakon dijeljenja teže 0, pa odlučuju samo glavni dijelovi.'));
+  }
+  let result;
+  if (ab) { result = pick(perSide[-1], perSide[1], side0); }
+  else { const r = perSide[1]; result = r.L ? pick(r.L, r.D, side0) : r; }
+  if (ab || result.type === 'dne') {
+    const L = ab ? perSide[-1] : (perSide[1].L || result), D = ab ? perSide[1] : (perSide[1].D || result);
+    let vr = '';
+    if (L.type === 'num' && D.type === 'num') vr = resEq(L, D) ? ` Lijevi i desni limes su jednaki ($${resTex(L)}$): ako f nije definisana u ${a.str()}, to je <b>otklonjiv prekid</b>.` : ' Oba jednostrana limesa su konačna i različita: <b>prekid prve vrste (skok)</b>.';
+    else vr = ' Bar jedan jednostrani limes je beskonačan: <b>prekid druge vrste</b> (vertikalna asimptota).';
+    steps.push(step('Zaključak i vrsta prekida', 'Uporedi lijevi i desni limes.', `$$${sideLim(a, '-')} = ${resTex(L)},\\qquad ${sideLim(a, '+')} = ${resTex(D)}$$` + (resEq(L, D) ? '' : 'Limes ne postoji.') + vr,
+      'Prekid prve vrste: oba jednostrana limesa konačna, a različita. Otklonjiv: limes postoji, ali f(a) nije definisano ili je različito. Druge vrste: bar jedan jednostrani limes je beskonačan ili ne postoji.'));
+    if (ab && resEq(L, D)) result = L;
+  }
+  return finish({ problem, steps, result, ap, numeric });
+}
+SOLVERS.gen = solveGen;
+
 /* ---------- unos odgovora studenta ---------- */
 function parseAnswer(src) {
   let s = String(src || '').trim().toLowerCase().replace(/\s+/g, ' ');
@@ -1318,6 +1734,20 @@ const S = (n1, n2, d1, d2, side) => {
 const DIR_OPTS = [['+', '+∞'], ['-', '−∞']];
 const PT_OPTS = [['a', 'tačka a'], ['+', '+∞'], ['-', '−∞']];
 const TYPES = [
+  { id: 'gen', name: 'Limes kad x → a bez Lopitala / Makloren (kao na rokovima)', desc: 'Brojilac i imenilac su izrazi sa e, sin, cos, tg, ctg, arcsin, arctg, ln, √, ∛, |·| i stepenima. Ako se vodeći članovi ne poništavaju, rješava se preko standardnih limesa („dodaj i oduzmi 1“), a inače Maklorenovom formulom.',
+    fields: [{ k: 'num', l: 'Brojilac', ph: 'e^x - cos(2x)', w: 1 }, { k: 'den', l: 'Imenilac', ph: '2sin(x) + ln(1-x)', w: 1 }, { k: 'a', l: 'x teži broju a', ph: '0' }, { k: 'side', l: 'Limes', opts: SIDE_OPTS }, { k: 'method', l: 'Postupak', opts: [['auto', 'automatski'], ['std', 'standardni limesi'], ['mac', 'Maklorenova formula']] }],
+    presets: [['K1 5.12.2025 A: (eˣ − cos 2x)/(2 sin x + ln(1−x))', { num: 'e^x - cos(2x)', den: '2sin(x) + ln(1-x)', a: '0', side: '0', method: 'auto' }],
+      ['K1 5.12.2025 B: (e⁻²ˣ − √(1−x))/(x + ln(1+x²))', { num: 'e^(-2x) - sqrt(1-x)', den: 'x + ln(1+x^2)', a: '0', side: '0', method: 'auto' }],
+      ['K2 30.1.2026: (cos x − e^(−x²/2))/x⁴', { num: 'cos(x) - e^(-x^2/2)', den: 'x^4', a: '0', side: '0', method: 'mac' }],
+      ['K2 popravni: (ln(1+x) − x cos x)/x²', { num: 'ln(1+x) - x*cos(x)', den: 'x^2', a: '0', side: '0', method: 'mac' }],
+      ['Rok 30.1.2026: (√(1−x) − 3)/(2 + ∛x), x→−8', { num: 'sqrt(1-x) - 3', den: '2 + cbrt(x)', a: '-8', side: '0', method: 'auto' }],
+      ['Rok 7.5.2026: (1 − cos x·√cos 2x)/x²', { num: '1 - cos(x)*sqrt(cos(2x))', den: 'x^2', a: '0', side: '0', method: 'auto' }],
+      ['Rok 19.6.2026: (√cos x − ∛cos x)/sin²x', { num: 'sqrt(cos(x)) - cbrt(cos(x))', den: 'sin(x)^2', a: '0', side: '0', method: 'auto' }],
+      ['Rok 28.8.2026: |tg 3x|/x (vrsta prekida)', { num: '|tg(3x)|', den: 'x', a: '0', side: '0', method: 'auto' }],
+      ['Rok 11.9.2026: (∛cos 2x − √cos 3x)/x²', { num: 'cbrt(cos(2x)) - sqrt(cos(3x))', den: 'x^2', a: '0', side: '0', method: 'auto' }],
+      ['Rok 25.9.2026: (tg x − sin x)/x³', { num: 'tg(x) - sin(x)', den: 'x^3', a: '0', side: '0', method: 'auto' }],
+      ['(sin x − x)/x³', { num: 'sin(x) - x', den: 'x^3', a: '0', side: '0', method: 'auto' }],
+      ['(eˣ − 1 − x)/(1 − cos x)', { num: 'e^x - 1 - x', den: '1 - cos(x)', a: '0', side: '0', method: 'auto' }]] },
   { id: 'ratpt', name: 'Racionalna funkcija, x → a (0/0, c/0)', desc: 'P(x)/Q(x) kad x teži broju a. Za oblik 0/0 rastavlja se Hornerovom šemom i skraćuje (x − a); za oblik c/0 računaju se lijevi i desni limes.',
     fields: [{ k: 'num', l: 'Brojilac P(x)', ph: 'x^2-4', w: 1 }, { k: 'den', l: 'Imenilac Q(x)', ph: 'x-2', w: 1 }, { k: 'a', l: 'a (broj)', ph: '2' }, { k: 'side', l: 'Limes', opts: SIDE_OPTS }],
     presets: [['(x²−4)/(x−2), x→2', { num: 'x^2-4', den: 'x-2', a: '2', side: '0' }], ['(x³−1)/(x²−1), x→1', { num: 'x^3-1', den: 'x^2-1', a: '1', side: '0' }], ['(x²−5x+6)/(x²−9), x→3', { num: 'x^2-5x+6', den: 'x^2-9', a: '3', side: '0' }], ['(x³−3x+2)/(x⁴−4x+3), x→1', { num: 'x^3-3x+2', den: 'x^4-4x+3', a: '1', side: '0' }], ['(x³+8)/(x²+x−2), x→−2', { num: 'x^3+8', den: 'x^2+x-2', a: '-2', side: '0' }], ['(x+1)/(x−2), x→2', { num: 'x+1', den: 'x-2', a: '2', side: '0' }], ['(2x+1)/(x−1)², x→1', { num: '2x+1', den: '(x-1)^2', a: '1', side: '0' }]] },
@@ -1633,7 +2063,7 @@ try { const hs = localStorage.getItem('limf_hints'); if (hs !== null) $('#hints'
 $('#hints').onchange = () => { try { localStorage.setItem('limf_hints', $('#hints').checked ? '1' : '0'); } catch (e) {} if ($('#out').innerHTML) $('#go').click(); };
 $('#tryself').onchange = () => { if ($('#out').innerHTML) $('#go').click(); };
 
-selectType('ratpt');
+selectType('gen');
 try { if (localStorage.getItem('limf_tab') === 'rules') document.querySelector('[data-tab="rules"]').click(); } catch (e) {}
 
 })();

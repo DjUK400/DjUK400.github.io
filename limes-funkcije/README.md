@@ -8,6 +8,7 @@ Rješavač limesa funkcija **korak po korak** (DIR, prva godina Građevinskog fa
 
 | # | Tip | Primjer | Metoda |
 |---|-----|---------|--------|
+| 0 | **Limes kad x → a bez Lopitala / Makloren (kao na rokovima)** | (eˣ − cos 2x)/(2 sin x + ln(1−x)) → 1; (cos x − e^(−x²/2))/x⁴ → −1/12 | dodaj i oduzmi 1 + standardni limesi; Maklorenova formula kad se vodeći članovi poništavaju |
 | 1 | Racionalna funkcija, x → a | (x³−3x+2)/(x⁴−4x+3), x→1 → 1/2 | Hornerova šema, skraćivanje (x − a); za c/0 lijevi i desni limes |
 | 2 | Racionalna funkcija, x → ±∞ | (x³+1)/(x²+1), x→−∞ → −∞ | izvlačenje najvećeg stepena |
 | 3 | Iracionalni izraz 0/0 | (√(x+5) − 3)/(x−4), x→4 → 1/6 | racionalizacija (konjugovani izraz) |
@@ -16,6 +17,8 @@ Rješavač limesa funkcija **korak po korak** (DIR, prva godina Građevinskog fa
 | 6 | Oblik 1^∞ | ((x+3)/(x+1))ˣ → e² | (1 + 1/t)ᵗ → e |
 | 7 | Jednostrani limesi | e^(1/x), arctg(1/(x−1)), \|x−3\|/(x−3) | znak sa lijeve i desne strane |
 | 8 | Asimptote racionalne funkcije | x³/(x²−1) → x = ±1, y = x | jednostrani limesi, k = lim f/x, n = lim (f − kx) |
+
+Tip 0 ima kao primjere svih 10 zadataka sa limesom funkcije sa kolokvijuma i rokova DIR 1 / M2 (5.12.2025 – 25.9.2026). Izrazi se upisuju kao na papiru: `e^x - cos(2x)`, `sqrt(cos(x)) - cbrt(cos(x))`, `|tg(3x)|`.
 
 ## Učenje
 - **Hintovi:** prvo vidiš samo pitanje-hint, pa korak otvaraš sam; rezultat je sakriven.
@@ -29,6 +32,6 @@ Rješavač limesa funkcija **korak po korak** (DIR, prva godina Građevinskog fa
 - Za nepodržan unos stranica prikaže obavještenje sa razlogom i ne izmišlja rješenje.
 
 ## Ograničenja
-- Nema Lopitalovog pravila ni Tejlorovih razvoja: npr. (sin x − x)/x³ nije podržano (standardni limesi važe samo u proizvodu i količniku).
-- Korijeni su samo kvadratni (u tipovima 3 i 4); trigonometrija samo za x → 0.
+- Bez Lopitalovog pravila. U tipu 0 funkcije moraju u tački a imati „lijepu“ vrijednost (argument sin/cos/tg/e jednak 0, argument ln jednak 1, korijen iz savršenog stepena) — inače rezultat nije racionalan i prikazuje se obavještenje.
+- Tip 0 ne radi limese kad x → ±∞ niti eksponente oblika f(x)^g(x) (za to su tipovi 2, 4 i 6).
 - Asimptote: samo kad su nule imenioca racionalne (ili ih nema).
