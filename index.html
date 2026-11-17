@@ -62,7 +62,6 @@ body{margin:0;background:var(--fk-bg);color:var(--fk-ink);font:16px/1.5 var(--fk
 .tags span{font:600 12.5px var(--fk-head);letter-spacing:.02em;padding:1px 7px;border:1px solid var(--fk-rule);border-radius:3px;color:var(--fk-ink2)}
 .go{font:600 13px var(--fk-head);letter-spacing:.09em;text-transform:uppercase;color:var(--fk-ink);margin-top:10px}
 .none{color:var(--fk-ink2)}
-.legal{margin:10px 0 0;font-size:11.5px;line-height:1.45;color:var(--fk-ink2);max-width:90ch;opacity:.85}
 .foot{margin-top:40px;padding-top:12px;border-top:1px solid var(--fk-rule);font-size:13.5px;color:var(--fk-ink2);max-width:80ch}
 @media (prefers-reduced-motion:reduce){.card{transition:none}.card:hover{transform:none}}
 </style>
@@ -135,7 +134,6 @@ body{margin:0;background:var(--fk-bg);color:var(--fk-ink);font:16px/1.5 var(--fk
   </section>
   <p class="none" id="none" hidden>Ništa ne odgovara pretrazi.</p>
   <p class="foot">Građevinski fakultet, Univerzitet u Banjoj Luci. Aplikacije služe za vježbu i provjeru; na kolokvijumu postupak piši sam.</p>
-  <p class="legal"><b>Odricanje od odgovornosti.</b> Sadržaj ovog sajta služi isključivo za vježbu i ličnu pripremu i nije zvanični materijal fakulteta ni predmetnih nastavnika. Sajt nije povezan sa Univerzitetom u Banjoj Luci ni sa Građevinskim fakultetom. Autor ne garantuje tačnost, potpunost ni aktuelnost pitanja, odgovora, rješenja i postupaka, niti da će se bilo koje pitanje ili tip zadatka pojaviti na kolokvijumu ili ispitu. Sajt se koristi na sopstvenu odgovornost: autor ne odgovara za rezultate na kolokvijumima i ispitima, za odluke donesene na osnovu sadržaja, niti za bilo kakvu direktnu ili indirektnu štetu nastalu korištenjem sajta. Za tačne informacije mjerodavni su zvanični materijali i predmetni nastavnici. Ako smatrate da je neki sadržaj objavljen bez dozvole nosioca autorskih prava, javite se preko GitHub profila DjUK400 i biće uklonjen.</p>
 </main>
 <script>
 (function(){var q=document.getElementById('q'),none=document.getElementById('none');
@@ -143,5 +141,6 @@ q.addEventListener('input',function(){var v=q.value.trim().toLowerCase(),any=fal
 document.querySelectorAll('.grp').forEach(function(g){var vis=0;g.querySelectorAll('li').forEach(function(li){var ok=!v||li.dataset.k.indexOf(v)>=0;li.hidden=!ok;if(ok)vis++});g.querySelectorAll('.sub').forEach(function(sb){sb.hidden=!sb.querySelector('li:not([hidden])')});g.hidden=!vis;if(vis)any=true});
 none.hidden=any;});})();
 </script>
+<!--fk-legal:start--><div class="fk-legal" style="box-sizing:border-box;max-width:var(--fk-w,1080px);margin:28px auto 0;padding:12px max(16px,env(safe-area-inset-right,0px)) 28px max(16px,env(safe-area-inset-left,0px))"><p style="margin:0;padding-top:10px;border-top:1px solid var(--fk-rule,#c8d1ce);font:11.5px/1.45 var(--fk-body,system-ui,sans-serif);color:var(--fk-ink2,#4b5761);max-width:90ch;opacity:.85"><b>Odricanje od odgovornosti.</b> Sadržaj ovog sajta služi isključivo za vježbu i ličnu pripremu i nije zvanični materijal fakulteta ni predmetnih nastavnika. Sajt nije povezan sa Univerzitetom u Banjoj Luci ni sa Građevinskim fakultetom. Autor ne garantuje tačnost, potpunost ni aktuelnost pitanja, odgovora, rješenja i postupaka, niti da će se bilo koje pitanje ili tip zadatka pojaviti na kolokvijumu ili ispitu. Sajt se koristi na sopstvenu odgovornost: autor ne odgovara za rezultate na kolokvijumima i ispitima, za odluke donesene na osnovu sadržaja, niti za bilo kakvu direktnu ili indirektnu štetu nastalu korištenjem sajta. Za tačne informacije mjerodavni su zvanični materijali i predmetni nastavnici. Greške, pitanja i zahtjeve za uklanjanje sadržaja (npr. ako smatrate da je nešto objavljeno bez dozvole nosioca autorskih prava) pošaljite preko <a href="https://github.com/DjUK400/djuk400.github.io/issues" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline">kontakt stranice na GitHubu</a>.</p></div><!--fk-legal:end-->
 </body>
 </html>
