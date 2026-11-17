@@ -19,6 +19,9 @@ APPS = [
  ("Nacrtna geometrija", "O₁", "--fk-o", "Zadaci sa vježbi",
   "Riješeni zadaci sa vježbi 2–4, svaki crtež korak po korak ili odmah gotov.",
   ["vježba 2.1", "2.2", "3", "4"], "/Nacrtna-Geometrija-Zadaci-Sa-Vijezbi/"),
+ ("Informatika", "?!", "--fk-p", "Informatika 1 · kviz i kartice",
+  "Pitanja za teorijske kolokvijume: kviz sa četiri ponuđena odgovora ili kartice sa odgovorom na poleđini.",
+  ["lista 51", "lista 136", "kviz", "kartice"], "/informatika/"),
 ]
 
 CSS = """
@@ -77,7 +80,7 @@ html = f'''<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Aplikacije za fakultet</title>
-<meta name="description" content="Besplatni rješavači i riješeni zadaci za prvu godinu Građevinskog fakulteta u Banjoj Luci: inverzne funkcije, limesi nizova, MM prvi kolokvijum, nacrtna geometrija.">
+<meta name="description" content="Besplatni rješavači i riješeni zadaci za prvu godinu Građevinskog fakulteta u Banjoj Luci: inverzne funkcije, limesi nizova, MM prvi kolokvijum, nacrtna geometrija, informatika.">
 {FONTS}
 <style>{CORE}:root{{--fk-w:1080px}}
 {CSS}</style>
@@ -88,7 +91,7 @@ html = f'''<!doctype html>
 <main class="page">
   <p class="fk-eyebrow">Građevinski fakultet · prva godina</p>
   <h1 class="fk-h1">Aplikacije za fakultet</h1>
-  <p class="fk-lede">Rješavači i riješeni zadaci iz matematike i nacrtne geometrije. Izaberi šta ti treba; sve radi u browseru na telefonu i računaru, bez instalacije i naloga.</p>
+  <p class="fk-lede">Rješavači i riješeni zadaci iz matematike i nacrtne geometrije, i pitanja iz informatike. Izaberi šta ti treba; sve radi u browseru na telefonu i računaru, bez instalacije i naloga.</p>
   <div class="search"><input id="q" type="search" placeholder="Traži, npr. limes, ravan, indukcija" aria-label="Traži aplikaciju" autocomplete="off"></div>
 {chr(10).join(sections)}
   <p class="none" id="none" hidden>Ništa ne odgovara pretrazi.</p>
