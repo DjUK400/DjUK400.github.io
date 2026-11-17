@@ -4,13 +4,13 @@ from skin import FONTS, CORE, THEME_JS
 
 # Svaka aplikacija: (grupa, oznaka na kartici, boja, naslov, opis, oznake, link)
 APPS = [
- ("Matematika (MM)|DIR", "f⁻¹", "--fk-blue", "Rješavač inverznih funkcija",
+ ("DIR", "f⁻¹", "--fk-blue", "Rješavač inverznih funkcija",
   "Skiciranje arcus funkcije i njenog inverza, korak po korak, uz vježbu i osnovna pravila.",
   ["1. zadatak K1", "arcsin · arccos · arctg · arcctg"], "/Rje-ava-a-inverznih-funkcija/"),
- ("Matematika (MM)|DIR", "lim", "--fk-red", "Limesi nizova",
+ ("DIR", "lim", "--fk-red", "Limesi nizova",
   "Limesi nizova sa postupkom, hintovima, objašnjenjem „zašto“ i svim pravilima i neodređenim oblicima.",
   ["∞/∞", "0·∞", "1^∞"], "/Rjesavanje-Limes-Niza/"),
- ("Matematika (MM)|LAAG", "∧∨", "--fk-ok", "MM Rješavač · prvi kolokvijum",
+ ("LAAG", "∧∨", "--fk-ok", "MM Rješavač · prvi kolokvijum",
   "Logika (tablica istinitosti), skupovi, relacije, funkcije i indukcija. Svako poglavlje u svom tabu, sa teorijom.",
   ["logika", "skupovi", "relacije", "funkcije", "indukcija"], "/LAAG-Rjesavanje-Zadataka/"),
  ("Nacrtna geometrija", "⊥", "--fk-n", "Rješavač ortogonalnih projekcija",
@@ -54,7 +54,7 @@ body{margin:0;background:var(--fk-bg);color:var(--fk-ink);font:16px/1.5 var(--fk
 
 def esc(t): return t.replace('&', '&amp;').replace('<', '&lt;')
 
-# Grupa se piše kao "Grupa" ili "Grupa|Podgrupa" (npr. "Matematika (MM)|DIR")
+# Grupa se piše kao "Grupa" ili "Grupa|Podgrupa" (npr. "DIR")
 def split(g): return (g.split('|', 1) + [''])[:2]
 
 def card(a):
@@ -88,7 +88,7 @@ for g in groups:
     </div>''')
     n = len(items)
     sections.append(f'''  <section class="grp">
-    <h2>{esc(g)} <small>{n} {"aplikacija"}</small></h2>
+    <h2>{esc(g)} <small>{n} {"aplikacija" if n % 10 == 1 and n % 100 != 11 else "aplikacije" if n % 10 in (2, 3, 4) and n % 100 not in (12, 13, 14) else "aplikacija"}</small></h2>
 {chr(10).join(blocks)}
   </section>''')
 
