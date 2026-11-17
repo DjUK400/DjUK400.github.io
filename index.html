@@ -48,6 +48,8 @@ body{margin:0;background:var(--fk-bg);color:var(--fk-ink);font:16px/1.5 var(--fk
 .grp{margin:0 0 30px}
 .grp h2{font:700 22px/1.2 var(--fk-head);margin:0 0 12px;padding-bottom:6px;border-bottom:1.5px solid var(--fk-ink);display:flex;justify-content:space-between;align-items:baseline;gap:10px}
 .grp h2 small{font:600 13px var(--fk-head);letter-spacing:.09em;text-transform:uppercase;color:var(--fk-ink2)}
+.sub+.sub{margin-top:18px}
+.subh{font:600 13px/1.3 var(--fk-head);letter-spacing:.09em;text-transform:uppercase;color:var(--fk-ink2);margin:0 0 8px}
 .list{display:grid;gap:14px;grid-template-columns:minmax(0,1fr);margin:0;padding:0;list-style:none}
 @media (min-width:760px){.list{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .card{height:100%;box-sizing:border-box;display:grid;grid-template-columns:auto minmax(0,1fr);text-decoration:none;color:inherit;background:var(--fk-paper);border:1.5px solid var(--fk-ink);transition:transform .15s,box-shadow .15s}
@@ -74,48 +76,60 @@ body{margin:0;background:var(--fk-bg);color:var(--fk-ink);font:16px/1.5 var(--fk
   <div class="search"><input id="q" type="search" placeholder="Traži, npr. limes, ravan, indukcija" aria-label="Traži aplikaciju" autocomplete="off"></div>
   <section class="grp">
     <h2>Matematika (MM) <small>3 aplikacija</small></h2>
+    <div class="sub">
+    <h3 class="subh">DIR</h3>
     <ul class="list">
-      <li data-k="rješavač inverznih funkcija skiciranje arcus funkcije i njenog inverza, korak po korak, uz vježbu i osnovna pravila. 1. zadatak k1 arcsin · arccos · arctg · arcctg"><a class="card" href="/Rje-ava-a-inverznih-funkcija/" style="--a:var(--fk-blue)">
+      <li data-k="rješavač inverznih funkcija skiciranje arcus funkcije i njenog inverza, korak po korak, uz vježbu i osnovna pravila. dir 1. zadatak k1 arcsin · arccos · arctg · arcctg"><a class="card" href="/Rje-ava-a-inverznih-funkcija/" style="--a:var(--fk-blue)">
         <span class="mark" aria-hidden="true">f⁻¹</span>
         <span class="body"><h3>Rješavač inverznih funkcija</h3><p>Skiciranje arcus funkcije i njenog inverza, korak po korak, uz vježbu i osnovna pravila.</p>
           <span class="tags"><span>1. zadatak K1</span><span>arcsin · arccos · arctg · arcctg</span></span>
           <span class="go">Otvori →</span></span></a></li>
-      <li data-k="limesi nizova limesi nizova sa postupkom, hintovima, objašnjenjem „zašto“ i svim pravilima i neodređenim oblicima. ∞/∞ 0·∞ 1^∞"><a class="card" href="/Rjesavanje-Limes-Niza/" style="--a:var(--fk-red)">
+      <li data-k="limesi nizova limesi nizova sa postupkom, hintovima, objašnjenjem „zašto“ i svim pravilima i neodređenim oblicima. dir ∞/∞ 0·∞ 1^∞"><a class="card" href="/Rjesavanje-Limes-Niza/" style="--a:var(--fk-red)">
         <span class="mark" aria-hidden="true">lim</span>
         <span class="body"><h3>Limesi nizova</h3><p>Limesi nizova sa postupkom, hintovima, objašnjenjem „zašto“ i svim pravilima i neodređenim oblicima.</p>
           <span class="tags"><span>∞/∞</span><span>0·∞</span><span>1^∞</span></span>
           <span class="go">Otvori →</span></span></a></li>
-      <li data-k="mm rješavač · prvi kolokvijum logika (tablica istinitosti), skupovi, relacije, funkcije i indukcija. svako poglavlje u svom tabu, sa teorijom. logika skupovi relacije funkcije indukcija"><a class="card" href="/LAAG-Rjesavanje-Zadataka/" style="--a:var(--fk-ok)">
+    </ul>
+    </div>
+    <div class="sub">
+    <h3 class="subh">LAAG</h3>
+    <ul class="list">
+      <li data-k="mm rješavač · prvi kolokvijum logika (tablica istinitosti), skupovi, relacije, funkcije i indukcija. svako poglavlje u svom tabu, sa teorijom. laag logika skupovi relacije funkcije indukcija"><a class="card" href="/LAAG-Rjesavanje-Zadataka/" style="--a:var(--fk-ok)">
         <span class="mark" aria-hidden="true">∧∨</span>
         <span class="body"><h3>MM Rješavač · prvi kolokvijum</h3><p>Logika (tablica istinitosti), skupovi, relacije, funkcije i indukcija. Svako poglavlje u svom tabu, sa teorijom.</p>
           <span class="tags"><span>logika</span><span>skupovi</span><span>relacije</span><span>funkcije</span><span>indukcija</span></span>
           <span class="go">Otvori →</span></span></a></li>
     </ul>
+    </div>
   </section>
   <section class="grp">
     <h2>Nacrtna geometrija <small>2 aplikacija</small></h2>
+    <div class="sub">
     <ul class="list">
-      <li data-k="rješavač ortogonalnih projekcija upišeš postavu sa lista, sajt riješi zadatak u mongeovoj projekciji, korak po korak, sa crtežom. prava ravan presjek prava veličina"><a class="card" href="/Aplikacija-Za-Nacrtnu-Geometriju/" style="--a:var(--fk-n)">
+      <li data-k="rješavač ortogonalnih projekcija upišeš postavu sa lista, sajt riješi zadatak u mongeovoj projekciji, korak po korak, sa crtežom.  prava ravan presjek prava veličina"><a class="card" href="/Aplikacija-Za-Nacrtnu-Geometriju/" style="--a:var(--fk-n)">
         <span class="mark" aria-hidden="true">⊥</span>
         <span class="body"><h3>Rješavač ortogonalnih projekcija</h3><p>Upišeš postavu sa lista, sajt riješi zadatak u Mongeovoj projekciji, korak po korak, sa crtežom.</p>
           <span class="tags"><span>prava</span><span>ravan</span><span>presjek</span><span>prava veličina</span></span>
           <span class="go">Otvori →</span></span></a></li>
-      <li data-k="zadaci sa vježbi riješeni zadaci sa vježbi 2–4, svaki crtež korak po korak ili odmah gotov. vježba 2.1 2.2 3 4"><a class="card" href="/Nacrtna-Geometrija-Zadaci-Sa-Vijezbi/" style="--a:var(--fk-o)">
+      <li data-k="zadaci sa vježbi riješeni zadaci sa vježbi 2–4, svaki crtež korak po korak ili odmah gotov.  vježba 2.1 2.2 3 4"><a class="card" href="/Nacrtna-Geometrija-Zadaci-Sa-Vijezbi/" style="--a:var(--fk-o)">
         <span class="mark" aria-hidden="true">O₁</span>
         <span class="body"><h3>Zadaci sa vježbi</h3><p>Riješeni zadaci sa vježbi 2–4, svaki crtež korak po korak ili odmah gotov.</p>
           <span class="tags"><span>vježba 2.1</span><span>2.2</span><span>3</span><span>4</span></span>
           <span class="go">Otvori →</span></span></a></li>
     </ul>
+    </div>
   </section>
   <section class="grp">
     <h2>Informatika <small>1 aplikacija</small></h2>
+    <div class="sub">
     <ul class="list">
-      <li data-k="informatika 1 · kviz i kartice pitanja za teorijske kolokvijume: kviz sa četiri ponuđena odgovora ili kartice sa odgovorom na poleđini. lista 51 lista 136 kviz kartice"><a class="card" href="/informatika/" style="--a:var(--fk-p)">
+      <li data-k="informatika 1 · kviz i kartice pitanja za teorijske kolokvijume: kviz sa četiri ponuđena odgovora ili kartice sa odgovorom na poleđini.  lista 51 lista 136 kviz kartice"><a class="card" href="/informatika/" style="--a:var(--fk-p)">
         <span class="mark" aria-hidden="true">?!</span>
         <span class="body"><h3>Informatika 1 · kviz i kartice</h3><p>Pitanja za teorijske kolokvijume: kviz sa četiri ponuđena odgovora ili kartice sa odgovorom na poleđini.</p>
           <span class="tags"><span>lista 51</span><span>lista 136</span><span>kviz</span><span>kartice</span></span>
           <span class="go">Otvori →</span></span></a></li>
     </ul>
+    </div>
   </section>
   <p class="none" id="none" hidden>Ništa ne odgovara pretrazi.</p>
   <p class="foot">Građevinski fakultet, Univerzitet u Banjoj Luci. Aplikacije služe za vježbu i provjeru; na kolokvijumu postupak piši sam.</p>
@@ -123,7 +137,7 @@ body{margin:0;background:var(--fk-bg);color:var(--fk-ink);font:16px/1.5 var(--fk
 <script>
 (function(){var q=document.getElementById('q'),none=document.getElementById('none');
 q.addEventListener('input',function(){var v=q.value.trim().toLowerCase(),any=false;
-document.querySelectorAll('.grp').forEach(function(g){var vis=0;g.querySelectorAll('li').forEach(function(li){var ok=!v||li.dataset.k.indexOf(v)>=0;li.hidden=!ok;if(ok)vis++});g.hidden=!vis;if(vis)any=true});
+document.querySelectorAll('.grp').forEach(function(g){var vis=0;g.querySelectorAll('li').forEach(function(li){var ok=!v||li.dataset.k.indexOf(v)>=0;li.hidden=!ok;if(ok)vis++});g.querySelectorAll('.sub').forEach(function(sb){sb.hidden=!sb.querySelector('li:not([hidden])')});g.hidden=!vis;if(vis)any=true});
 none.hidden=any;});})();
 </script>
 </body>
