@@ -266,6 +266,7 @@ try { const s = localStorage.getItem('inf-list'); if (s === 'l1' || s === 'l2' |
 
 function show(id) {
   ['home', 'quizSet', 'quiz', 'quizEnd', 'cardSet', 'cards', 'listView', 'tests'].forEach(s => $(s).classList.toggle('hide', s !== id));
+  $('tabs').classList.toggle('hide', id !== 'home' && id !== 'tests');
   window.scrollTo({ top: 0 });
 }
 function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
