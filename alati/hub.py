@@ -26,8 +26,8 @@ APPS = [
   "Svi metrički zadaci sa vježbi riješeni samo transformacijom: šta se traži i kako postaviti osu, pravila i crteži korak po korak, u tabovima.",
   ["prava veličina", "uglovi", "udaljenosti", "presjeci"], "/Nacrtna-Geometrija-Zadaci-Sa-Vijezbi/priprema-k1-transformacije/"),
  ("Informatika", "?!", "--fk-p", "Informatika 1 · kviz i kartice",
-  "Pitanja za teorijske kolokvijume: kviz sa četiri ponuđena odgovora ili kartice sa odgovorom na poleđini.",
-  ["lista 51", "lista 136", "kviz", "kartice"], "/informatika/"),
+  "Pitanja za teorijske kolokvijume i pitanja sa testova: kviz, kartice, lista sa odgovorima i PDF.",
+  ["sa testova", "lista 51", "lista 136", "kviz", "kartice", "PDF"], "/informatika/"),
 ]
 
 CSS = """
